@@ -5,6 +5,11 @@ import static org.junit.Assert.*;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Random;
 
 public class PerfectHashMapTest {
 
@@ -71,6 +76,88 @@ public class PerfectHashMapTest {
         // Verify all values
         for (int i = 0; i < 100; i++) {
             assertEquals("Value" + i, map.get(i));
+        }
+    }
+
+    @Test
+    public void benchmarkTest() {
+        // Test parameters
+        final int[] dataSizes = {1000, 10000, 100000};
+        final int numLookups = 1000000;
+        
+        System.out.println("\nBenchmark Results:");
+        System.out.println("=================");
+        
+        for (int size : dataSizes) {
+            // Generate test data
+            Set<String> keys = new HashSet<>();
+            for (int i = 0; i < size; i++) {
+                keys.add("key" + i);
+            }
+            
+            // Benchmark HashMap initialization
+            long startTime = System.nanoTime();
+            Map<String, Integer> hashMap = new HashMap<>();
+            for (String key : keys) {
+                hashMap.put(key, key.hashCode());
+            }
+            long hashMapInitTime = System.nanoTime() - startTime;
+            
+            // Benchmark PerfectHashMap initialization
+            startTime = System.nanoTime();
+            PerfectHashMap<String, Integer> perfectHashMap = new PerfectHashMap<>(keys);
+            for (String key : keys) {
+                perfectHashMap.put(key, key.hashCode());
+            }
+            long perfectHashMapInitTime = System.nanoTime() - startTime;
+            
+            // Prepare random keys for lookup (75% existing, 25% non-existing)
+            List<String> lookupKeys = new ArrayList<>();
+            Random random = new Random(42); // Fixed seed for reproducibility
+            for (int i = 0; i < numLookups; i++) {
+                if (random.nextDouble() < 0.75) {
+                    // Existing key
+                    lookupKeys.add("key" + random.nextInt(size));
+                } else {
+                    // Non-existing key
+                    lookupKeys.add("nonexistent" + random.nextInt(size));
+                }
+            }
+            
+            // Benchmark HashMap lookup
+            startTime = System.nanoTime();
+            int hashMapHits = 0;
+            for (String key : lookupKeys) {
+                if (hashMap.get(key) != null) {
+                    hashMapHits++;
+                }
+            }
+            long hashMapLookupTime = System.nanoTime() - startTime;
+            
+            // Benchmark PerfectHashMap lookup
+            startTime = System.nanoTime();
+            int perfectHashMapHits = 0;
+            for (String key : lookupKeys) {
+                if (perfectHashMap.get(key) != null) {
+                    perfectHashMapHits++;
+                }
+            }
+            long perfectHashMapLookupTime = System.nanoTime() - startTime;
+            
+            // Print results
+            System.out.printf("\nData size: %d entries%n", size);
+            System.out.println("----------------------------------------");
+            System.out.printf("Initialization time:%n");
+            System.out.printf("HashMap:        %8.2f ms%n", hashMapInitTime / 1_000_000.0);
+            System.out.printf("PerfectHashMap: %8.2f ms%n", perfectHashMapInitTime / 1_000_000.0);
+            System.out.printf("%nLookup time (%d operations):%n", numLookups);
+            System.out.printf("HashMap:        %8.2f ms (%.2f ns/op)%n", 
+                hashMapLookupTime / 1_000_000.0, 
+                (double) hashMapLookupTime / numLookups);
+            System.out.printf("PerfectHashMap: %8.2f ms (%.2f ns/op)%n", 
+                perfectHashMapLookupTime / 1_000_000.0,
+                (double) perfectHashMapLookupTime / numLookups);
+            System.out.printf("Hits: HashMap=%d, PerfectHashMap=%d%n", hashMapHits, perfectHashMapHits);
         }
     }
 }
